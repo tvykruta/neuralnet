@@ -28,6 +28,9 @@ bool NeuralNetwork::Create(const int input_nodes, const int hidden_nodes, const 
 // Forward propagate the network and compute output values
 bool NeuralNetwork::ForwardPropagate(const vector<double> &input_values,
                                      vector<double> *output_values) {
+  if (input_values.size() != layers[0].nodes.size() ) {
+    return false;
+  }
   // Start with 1st hidden layer and compute values for all nodes
   // Continue through all layers to output nodes
   // Normalize output values through sigmoid function.
