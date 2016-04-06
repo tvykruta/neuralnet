@@ -68,6 +68,7 @@ struct Layer {
   vector<double> node_values_computed;  // Computed values in forward propagation.
 };
 
+
 // Primary implementation.
 class NeuralNetwork {
 public:
