@@ -13,7 +13,7 @@ using namespace std;
 #define FLT_SMALL 0.0001f
 #define FLT_MIN -10000000000f
 
-void test_create()
+void test_Create()
 {
   int layers = 3;
   std::unique_ptr<NeuralNetwork> n(new NeuralNetwork);
@@ -153,15 +153,15 @@ void test_NeuralNet_2x2x1() {
   // logical OR
   const vector<double> input_values = { 1, 0 };
   vector<double> output_values;
-  vector<double> expected_values = { 0.774004 };
+  vector<double> expected_values = { 0.811856 };
   TEST_CHECK(nn.ForwardPropagate(input_values, &output_values));
-  TEST_CHECK(fabs(VectorToDouble(output_values) - 0.774004f) < 0.001f);
+  TEST_CHECK(fabs(VectorToDouble(output_values) - 0.811856) < 0.001f);
 /*
   TEST_CHECK_(std::equal(std::begin(output_values), std::end(output_values), std::begin(expected_values)),
               "Expected %s got %s",
               PrintVector(expected_values).c_str(),
-              PrintVector(output_values).c_str());
-              */
+              PrintVector(output_values).c_str());*/
+              
 }
 
 // Large neural network nodes.
@@ -190,10 +190,9 @@ void test_NeuralNet_Large() {
   TEST_CHECK(nn.ForwardPropagate(input_values, &output_values));
 }
 
-
 TEST_LIST = {
-    { "create",  test_create },
-    { "test_ForwardPropagate", test_ForwardPropagate },
+    { "Create",  test_Create },
+    { "ForwardPropagate", test_ForwardPropagate },
     { "UpdateNode",    test_UpdateNode },
     { "NeuralNet_2x1", test_NeuralNet_2x1 },
     { "NeuralNet_2x2x1", test_NeuralNet_2x2x1 },

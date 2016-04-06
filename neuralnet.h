@@ -36,6 +36,10 @@ using namespace std;
 struct Node {
   Node(const int num_weights) {
     weights.resize(num_weights);
+    // Seed weight with random # 0..1.
+    for (int w = 0; w < num_weights; w++) {
+        weights[w] = rand() / RAND_MAX;
+    }
   }
   // Incoming weights. Each weight corresponds to a node in previous layer.
   vector<double> weights;
@@ -67,18 +71,21 @@ struct Layer {
 // Primary implementation.
 class NeuralNetwork {
 public:
-  // Construct full neural network from # of nodes per layer.
-  bool Create(const vector<int> &layer_node_count);
-  // Simple 3 layer creation.
+  // Construct simple 3 layer neural network (most common).
   bool Create(const int input_nodes, const int hidden_nodes, const int output_nodes);
+  // Construct full neural network with arbitrary # of hidden layers.
+  bool Create(const vector<int> &nodes_per_layer);
+
   // For debugging only, seed weights.
   bool LoadWeights(const vector<vector<double>> &weights);
   // Run forward propagation and update output values.
   bool ForwardPropagate(const vector<double> &input_values,
                         vector<double> *output_values);
-  int NumLayers() const {
-    return layers.size();
+  // For debugging, draws the network as ASCII.
+  string DebugDraw() const {
+    // TODO: Add code to draw ascii graph
   }
+
 private:
   // Adds layer with N nodes. Each node has array of X weights for incoming
   // nodes.

@@ -1,3 +1,15 @@
+// Neural Net C++ implementation by Tomas Vykruta (2016).
+// See header file for documentation.
+//
+//                      . .
+//                    '.-:-.`  
+//                    '  :  `
+//                 .-----:     
+//               .'       `.
+//         ,    /       (o) \   
+//     jgs \`._/          ,__)
+//     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+//
 
 #include <iostream>
 #include <vector>
@@ -7,12 +19,12 @@
 
 using namespace std;
 
-bool NeuralNetwork::Create(const vector<int> &layer_node_count) {
+bool NeuralNetwork::Create(const vector<int> &nodes_per_layer) {
   // Need at least 2 layers (input, output)
-  if (layer_node_count.size() < 2) return false;
+  if (nodes_per_layer.size() < 2) return false;
 
   int num_nodes_previous_layer = 0;
-  for (int l : layer_node_count) {
+  for (int l : nodes_per_layer) {
     AddLayer(l, num_nodes_previous_layer);
     num_nodes_previous_layer = l;
   }
@@ -36,13 +48,13 @@ bool NeuralNetwork::ForwardPropagate(const vector<double> &input_values,
   // Normalize output values through sigmoid function.
   vector<double> thetas = input_values;
   vector<double> *node_values_computed;
-  const int nlayers = NumLayers();
+  const int nlayers = layers.size();
   for (int i = 1; i < nlayers; i++) {
     // thetas from previous later
     const auto &nodes = layers[i].nodes;
     node_values_computed = &layers[i].node_values_computed;
     
-    UpdateLayer(thetas, nodes, node_values_computed);
+    if (!UpdateLayer(thetas, nodes, node_values_computed)) return false;
     thetas = *node_values_computed;
   }
   *output_values = *node_values_computed;
@@ -57,7 +69,7 @@ bool NeuralNetwork::LoadWeights(const vector<vector<double>> &weights) {
   for (int l = 1; l < layers.size(); l++) {
     auto *layer = &layers[l];
     for (int n = 0; n < layer->nodes.size(); n++) {
-      auto *node = &layer->nodes[0];
+      auto *node = &layer->nodes[n];
       if (node_global_count >= weights.size()) {
         std::cout << "Weights mismatch count.";
         return false;
@@ -76,7 +88,7 @@ bool NeuralNetwork::LoadWeights(const vector<vector<double>> &weights) {
   }
   return true;
 }
-                 
+
 // Generates value for Node. Applies activation function to previous layer's node
 // thetas and incoming weights.
 bool UpdateNode(const vector<double> &thetas,
@@ -106,5 +118,6 @@ bool UpdateLayer(const vector<double> &thetas,
     
     node_values_computed->at(i) = (double)value;
   }
+  return true;
 }
 
