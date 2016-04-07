@@ -161,7 +161,6 @@ void test_NeuralNet_2x2x1() {
               "Expected %s got %s",
               PrintVector(expected_values).c_str(),
               PrintVector(output_values).c_str());*/
-              
 }
 
 // Large neural network nodes.

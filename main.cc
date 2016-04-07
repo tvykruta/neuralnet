@@ -1,4 +1,6 @@
-
+// Neurla net learner project.
+// Depencencies:
+/
 #include <iostream>
 #include <fstream>
 #include <string>

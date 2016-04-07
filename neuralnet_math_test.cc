@@ -21,13 +21,27 @@ double round_1000th(double val) {
 void test_sigmoid() {
   double test_value = 5.0;
   double result = sigmoid(test_value);
-  double expected = 0.9933071732521057129;
-  TEST_CHECK_(result == expected, "Got %19.19f expected %f9.9", result, expected);
+  double expected = 0.9933071490757152677;
+  TEST_CHECK_(result == expected, "Got %19.19f expected %9.9f", result, expected);
 
   test_value = -5.0;
   result = sigmoid(test_value);
-  expected = 0.0066928509622812271;
-  TEST_CHECK_(result == expected, "Got %19.19f expected %f9.9", result, expected);
+  expected = 0.0066928509242848554;
+  TEST_CHECK_(result == expected, "Got %19.19f expected %9.9f", result, expected);
+  
+  // Test derivative if sigmoid
+  test_value = 0.51f;
+  expected = 0.2499000001907347723;
+  result = dSigmoid(test_value);
+  TEST_CHECK_(result == expected, "Got %19.19f expected %9.9f", result, expected);
+
+  // Test sigmoid function.  
+  printf("x, sigmoid, dSigmoid\n");
+  for (float x = -5.0f; x < 5.0f; x += 0.25f) {
+    double s = sigmoid(x, 5.0);
+    double ds = dSigmoid(s);
+    printf("%0.3f, %0.3f, %0.3f\n", x, s, ds);
+  }
 }
 
 void test_rough_sigmoid() {

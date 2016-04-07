@@ -7,7 +7,8 @@
 using namespace std;
 
 float ComputeNode(const vector<double> &weights, const vector<double> &thetas);
-float sigmoid(float x);
+double sigmoid(const double x, double scale);
+double dSigmoid(const double val);
 inline float rough_sigmoid(float value);
 
 
@@ -20,14 +21,23 @@ float ComputeNode(const vector<double> &weights, const vector<double> &thetas) {
   return value;
 }
 
+// Sigmoid and derivative of sigmoid
+// f = 1/(1+exp(-x))
+// df = f * (1 - f)
+double dSigmoid(const double val) {
+  return val * (1.0 - val);
+}
+
+
 // Sigmoid function. Fits value where:
+// f = 1/(1+exp(-x))
 // 0.0 > result < 1.0 and for +val, result > 0.5 and -val, result < 0.5.l
-float sigmoid(float x) {
-     float exp_value;
-     float return_value;
+double sigmoid(const double x, double scale = 1.0) {
+     double exp_value;
+     double return_value;
 
      /*** Exponential calculation ***/
-     exp_value = exp((double) -x);
+     exp_value = exp((double) -x*scale);
 
      /*** Final sigmoid value ***/
      return_value = 1 / (1 + exp_value);

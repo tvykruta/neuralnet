@@ -4,8 +4,13 @@
 #include <mgl2/mgl.h>
 #include "draw_util.h"
 
+int main() {
+    
+}
+
 int draw_stuff() {
     mglGraph gr;
     gr.FPlot("sin(pi*x)+abs");
     gr.WriteFrame("test.png");
 }
+

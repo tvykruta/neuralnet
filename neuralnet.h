@@ -77,16 +77,21 @@ public:
   // Construct full neural network with arbitrary # of hidden layers.
   bool Create(const vector<int> &nodes_per_layer);
 
-  // For debugging only, seed weights.
+  // For debugging only, seed weights. Must match node structure.
   bool LoadWeights(const vector<vector<double>> &weights);
   // Run forward propagation and update output values.
   bool ForwardPropagate(const vector<double> &input_values,
                         vector<double> *output_values);
+
   // For debugging, draws the network as ASCII.
   string DebugDraw() const {
     // TODO: Add code to draw ascii graph
   }
 
+public:
+  // training
+  bool BackPropagate(const vector<double> &labeled_data_inputs,
+                     const vector<double> &labeled_data_outputs);
 private:
   // Adds layer with N nodes. Each node has array of X weights for incoming
   // nodes.
