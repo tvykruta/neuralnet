@@ -10,15 +10,15 @@ test: $(TEST_FILES)
 	for FILE in $(TEST_FILES) ; do \
 		./$$FILE ; \
 	done
-	
-# run: make all 
+
+# run: make all
 all: main
 %: %.cc draw_util.o
 	g++ -std=c++11 $< -o $@ $(LIBS)
 
 draw_util.o: draw_util.cc
 	g++ -std=c++11 -c draw_util.cc $(LIBS)
-  
+
 %: %.c
 	gcc $< -o $@
 

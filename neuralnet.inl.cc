@@ -2,17 +2,18 @@
 // See header file for documentation.
 //
 //                      . .
-//                    '.-:-.`  
+//                    '.-:-.`
 //                    '  :  `
-//                 .-----:     
+//                 .-----:
 //               .'       `.
-//         ,    /       (o) \   
+//         ,    /       (o) \
 //     jgs \`._/          ,__)
 //     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 //
 
 #include <iostream>
 #include <vector>
+#include <cassert>
 
 #include "neuralnet.h"
 #include "neuralnet_math.inl.cc"
@@ -40,30 +41,26 @@ bool NeuralNetwork::Create(const int input_nodes, const int hidden_nodes, const 
 // Forward propagate the network and compute output values
 bool NeuralNetwork::ForwardPropagate(const vector<double> &input_values,
                                      vector<double> *output_values) {
-  if (input_values.size() != layers[0].nodes.size() ) {
+  if (layers.size() < 2) {
+    cout << "Invalid network, needs 2 or more layers.";
     return false;
   }
-  // Start with 1st hidden layer and compute values for all nodes
-  // Continue through all layers to output nodes
-  // Normalize output values through sigmoid function.
-  vector<double> thetas = input_values;
-  vector<double> *node_values_computed;
-  const int nlayers = layers.size();
-  for (int i = 1; i < nlayers; i++) {
-    // thetas from previous later
-    const auto &nodes = layers[i].nodes;
-    node_values_computed = &layers[i].node_values_computed;
-    
-    if (!UpdateLayer(thetas, nodes, node_values_computed)) return false;
-    thetas = *node_values_computed;
+  if (input_values.size() != layers[0].nodes.size()) {
+    printf("Inputs mismatches, got %lu but network has %lu input nodes",
+        input_values.size(), layers[0].nodes.size());
+    return false;
   }
-  *output_values = *node_values_computed;
-  return true;
+  if (!output_values->empty()) {
+    printf("warning: Output node value array is not empty.");
+    output_values->clear();
+  }
+  return DoForwardPropagate(input_values, layers, output_values);
 }
+
 
 // Initialize a neural network with weights for each node.
 // Ie: For network with 2 input nodes, 2 nodes hidden layeer ,1 output,
-// we have: [ [n0.w0, n0.w1, [n1.w0, n1.w1], [n2.w1, n2.w1] 
+// we have: [ [n0.w0, n0.w1, [n1.w0, n1.w1], [n2.w1, n2.w1]
 bool NeuralNetwork::LoadWeights(const vector<vector<double>> &weights) {
   int node_global_count = 0;
   for (int l = 1; l < layers.size(); l++) {
@@ -92,10 +89,11 @@ bool NeuralNetwork::LoadWeights(const vector<vector<double>> &weights) {
 // Generates value for Node. Applies activation function to previous layer's node
 // thetas and incoming weights.
 bool UpdateNode(const vector<double> &thetas,
-                const vector<double> &weights, 
+                const vector<double> &weights,
                 float *output_value) {
   if (thetas.size() != weights.size()) {
     cout << "Error, thetas weights mismatch.";
+    assert(false);
     return false;
   }
   float val = ComputeNode(weights, thetas);
@@ -103,21 +101,48 @@ bool UpdateNode(const vector<double> &thetas,
   *output_value = val;
   return true;
 }
-  
-// Updates each node in this layer. Generates a new node_values_computed arra.
+
+// Updates each node in this layer. Generates a new node_values_computed array.
 // note: Thetas are from previous layer.
-bool UpdateLayer(const vector<double> &thetas,
+bool UpdateLayer(const vector<double> &node_values_previous_layer,
                  const vector<Node> &nodes,
                  vector<double> *node_values_computed) {
   for (int i = 0; i < nodes.size(); i++) {
     const auto &node = nodes[i];
     float value = -9999999.0;
-    if (!UpdateNode(thetas, node.weights, &value)) {
+    if (!UpdateNode(node_values_previous_layer, node.weights, &value)) {
       return false;
     }
-    
-    node_values_computed->at(i) = (double)value;
+
+    node_values_computed->push_back((double)value);
   }
   return true;
 }
 
+// Forward propagate the network and compute output values
+bool DoForwardPropagate(const vector<double> &input_values,
+                      const vector<Layer> &layers,
+                      vector<double> *output_values) {
+  assert(output_values->empty());
+  assert(input_values.size() == layers[0].nodes.size());
+
+  // Start with 1st hidden layer and compute values for all nodes
+  // Continue through all layers to output nodes
+  // Normalize output values through sigmoid function.
+  //
+  // node_values = values from previous layer
+  // nodes = nodes in current layer we';re computing for
+  vector<double> node_values = input_values;
+  vector<double> computed_values;
+  for (int i = 1; i < layers.size(); i++) {
+    // node_values from previous later
+    const auto &nodes = layers[i].nodes;
+    if (!UpdateLayer(node_values, nodes, &computed_values)) {
+      return false;
+    }
+    node_values = computed_values;
+    computed_values.clear();
+  }
+  *output_values = node_values;
+  return true;
+}
