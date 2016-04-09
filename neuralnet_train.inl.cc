@@ -144,6 +144,10 @@ bool UpdateNodeWeights(const double delta, vector<double> *weights) {
   return true;
 }
 
+bool ComputeInitialDeltas(const vector<double> &labeled_data_inputs,
+                          const vector<double> &labeled_data_outputs,
+                          const vector<Layer> &layers,
+                          vector<double> *output_deltas);
 // Forward propagate training set and generate detlas (errors) from expected output..
 bool ComputeInitialDeltas(const vector<double> &labeled_data_inputs,
                           const vector<double> &labeled_data_outputs,
@@ -153,15 +157,15 @@ bool ComputeInitialDeltas(const vector<double> &labeled_data_inputs,
   if (!DoForwardPropagate(labeled_data_inputs, layers, &computed_values)) {
     return false;
   }
-  vector<double> deltas;
   assert(computed_values.size() == labeled_data_outputs.size());
 
+  vector<double> deltas;
   // Compute difference from labeled (expected) output
-  VectorDifference(computed_values, labeled_data_outputs, &deltas);
+  VectorDifference(labeled_data_outputs, computed_values, &deltas);
 
   // Compute mean of error.
-  double sum = std::accumulate(computed_values.begin(), computed_values.end(), 0.0);
-  double mean = sum / computed_values.size();
+  double sum = std::accumulate(deltas.begin(), deltas.end(), 0.0);
+  double mean = sum / deltas.size();
   printf("Mean training error : %f\n", mean);
 
   ApplyDerivativeActivation(&deltas);
@@ -198,9 +202,8 @@ bool BackPropagate(const vector<double> &labeled_data_inputs,
                    const vector<Layer> &layers,
                    vector< vector<double> > *output_deltas_mat) {
   vector<double> initial_deltas;
-  bool ret = ComputeInitialDeltas(labeled_data_inputs, labeled_data_outputs,
-                                  layers, &initial_deltas);
-  assert(ret);
+  if (!ComputeInitialDeltas(labeled_data_inputs, labeled_data_outputs,
+                                  layers, &initial_deltas) ) return false;
   vector< vector<double> > new_deltas;
   vector<double> *deltas = &initial_deltas;
   new_deltas.push_back(initial_deltas);

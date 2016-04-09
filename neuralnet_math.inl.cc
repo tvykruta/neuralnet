@@ -6,7 +6,7 @@
 
 using namespace std;
 
-float ComputeNode(const vector<double> &weights, const vector<double> &thetas);
+double ComputeNode(const vector<double> &weights, const vector<double> &thetas);
 double sigmoid(const double x, double scale);
 double dSigmoid(const double val);
 inline float rough_sigmoid(float value);
@@ -16,8 +16,8 @@ inline float rough_sigmoid(float value);
 // node values and weights.
 //
 // Activation func: SUM(weight.0 * theta.0 ... weight.n, theta.n )
-float ComputeNode(const vector<double> &weights, const vector<double> &thetas) {
-  float value = std::inner_product(begin(weights), end(weights), begin(thetas), 0.0);
+double ComputeNode(const vector<double> &weights, const vector<double> &thetas) {
+  double value = std::inner_product(begin(weights), end(weights), begin(thetas), 0.0);
   return value;
 }
 

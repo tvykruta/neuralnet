@@ -68,17 +68,17 @@ bool NeuralNetwork::LoadWeights(const vector<vector<double>> &weights) {
     for (int n = 0; n < layer->nodes.size(); n++) {
       auto *node = &layer->nodes[n];
       if (node_global_count >= weights.size()) {
-        std::cout << "Weights mismatch count.";
+        std::cout << "LoadWeights fail: count mismatch.";
         return false;
       }
       if (node->weights.size() != weights[node_global_count].size()) {
-        std::cout << "Weights mismatch count.";
+        std::cout << "LoadWeights fail: count mismatch.";
         return false;
       }
       node->weights = weights[node_global_count++];
     }
   }
-  if (node_global_count < weights.size()) {
+  if (node_global_count != weights.size()) {
     std::cout << "LoadWeights mismatch count, loaded " << node_global_count
               << " weights expected " << weights.size();
     return false;
@@ -90,13 +90,13 @@ bool NeuralNetwork::LoadWeights(const vector<vector<double>> &weights) {
 // thetas and incoming weights.
 bool UpdateNode(const vector<double> &thetas,
                 const vector<double> &weights,
-                float *output_value) {
+                double *output_value) {
   if (thetas.size() != weights.size()) {
     cout << "Error, thetas weights mismatch.";
     assert(false);
     return false;
   }
-  float val = ComputeNode(weights, thetas);
+  double val = ComputeNode(weights, thetas);
   val = sigmoid(val);
   *output_value = val;
   return true;
@@ -109,7 +109,7 @@ bool UpdateLayer(const vector<double> &node_values_previous_layer,
                  vector<double> *node_values_computed) {
   for (int i = 0; i < nodes.size(); i++) {
     const auto &node = nodes[i];
-    float value = -9999999.0;
+    double value = -9999999.0;
     if (!UpdateNode(node_values_previous_layer, node.weights, &value)) {
       return false;
     }
@@ -121,8 +121,8 @@ bool UpdateLayer(const vector<double> &node_values_previous_layer,
 
 // Forward propagate the network and compute output values
 bool DoForwardPropagate(const vector<double> &input_values,
-                      const vector<Layer> &layers,
-                      vector<double> *output_values) {
+                        const vector<Layer> &layers,
+                        vector<double> *output_values) {
   assert(output_values->empty());
   assert(input_values.size() == layers[0].nodes.size());
 

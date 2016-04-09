@@ -34,7 +34,7 @@ void test_UpdateNode() {
 
   vector<double> thetas = {0.2f, 0.4f, 0.6f};
   vector<double> weights = {2.0f, 1.5f, 0.5f};
-  float output_value = -9999.0f;
+  double output_value = -9999.0f;
 
   TEST_CHECK(UpdateNode(thetas, weights, &output_value));
   TEST_CHECK_(output_value - 1.3 < FLT_SMALL,

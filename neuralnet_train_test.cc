@@ -35,6 +35,27 @@ void test_VectorSubtract() {
   TEST_CHECK(result == expected);
 }
 
+void testInitialDeltas() {
+  NeuralNetwork nn;
+  TEST_CHECK(nn.Create( { 2, 1 } ));
+  // Set up weights simple 2 layer network.
+  const vector<double> test_data_inputs = { 1.0, 2.0 };
+  const vector<vector<double>> weights = { { 0.5, 0.1 } };
+  TEST_CHECK(nn.LoadWeights(weights));
+  // Compute expected result:
+  // 0.5 * 1.0 + 0.1 * 2.0 = 0.7
+  // a = sigmoid(0.7)
+  // expected_deltas = dDismoid(0.9 - a)
+  const vector<double> test_data_outputs = { 0.9 };
+  const vector<double> expected_deltas = { dSigmoid(0.9 - sigmoid(0.7)) };
+  vector<double> output;
+  TEST_CHECK(ComputeInitialDeltas(test_data_inputs, test_data_outputs,
+                                  nn.layers, &output));
+  TEST_CHECK_(std::equal(std::begin(output), std::end(output),
+              std::begin(expected_deltas)),
+              "Output: %0.9f expected %0.9f diff %0.9f",
+              output[0], expected_deltas[0], output[0] - expected_deltas[0]);
+}
 
 // Back propagate a single layer
 void test_BackPropagateError() {
@@ -92,11 +113,11 @@ void test_UpdateWeights() {
       const auto& weights = layer.nodes[n].weights;
 
       const vector<double> &expected_node = expected[node_counter];
-      TEST_CHECK_(std::equal(std::begin(weights), std::end(weights),
-                  std::begin(expected_node)),
-                  "Expected %s got %s",
+      TEST_CHECK_(VecSimilar(expected_node, weights),
+                  "Expected %s got %s diff %0.9f",
                   PrintVector(expected_node).c_str(),
-                  PrintVector(weights).c_str());
+                  PrintVector(weights).c_str(),
+                  expected_node[0] - weights[0]);
       node_counter++;
     }
   }
@@ -122,6 +143,11 @@ void RunTest(const vector<double> &input_values, const int expected, const Neura
   vector<double> output_values;
   // Now test the network
   TEST_CHECK(nn.ForwardPropagate(input_values, &output_values));
+  printf("Ran test: Input %s Expected %i got %s (precisely %f)",
+         PrintVector(input_values).c_str(),
+         expected,
+         PrintVector(output_values).c_str(),
+         VectorToDouble(output_values));
   TEST_CHECK_(expected == VectorToBinaryClass(output_values),
               "Input %s Expected %i got %s (precisely %f)",
               PrintVector(input_values).c_str(),
@@ -141,18 +167,18 @@ void test_TrainOR() {
   // Create neira; met wotj 3 input nodes, 1 output nodes.
   TEST_CHECK(nn.Create( { 3, 1 } ));
 
-  for (int i = 0; i < 100; i++) {
+  for (int i = 0; i < 300; i++) {
     {
       // third term is BIAS
       const vector<double> training_inputs = { 1, 1, 1 };
       const vector<double> training_outputs = { 0 };
-      TEST_CHECK(nn.BackPropagate(training_inputs, training_outputs));
+      //TEST_CHECK(nn.BackPropagate(training_inputs, training_outputs));
     }
     {
       // third term is BIAS
       const vector<double> training_inputs = { 1, 0, 1 };
       const vector<double> training_outputs = { 1 };
-      TEST_CHECK(nn.BackPropagate(training_inputs, training_outputs));
+      //TEST_CHECK(nn.BackPropagate(training_inputs, training_outputs));
     }
     {
       // third term is BIAS
@@ -164,7 +190,7 @@ void test_TrainOR() {
       // third term is BIAS
       const vector<double> training_inputs = { 0, 0, 1 };
       const vector<double> training_outputs = { 0 };
-      TEST_CHECK(nn.BackPropagate(training_inputs, training_outputs));
+      //TEST_CHECK(nn.BackPropagate(training_inputs, training_outputs));
     }
   }
 
@@ -175,25 +201,26 @@ void test_TrainOR() {
   // 0 ^ 1 = 1
   // 0 ^ 0 = 0
   vector<double> input_values = { 1, 1, 1 };
-  RunTest(input_values, 0, nn);
+  //RunTest(input_values, 0, nn);
 
   input_values = { 1, 0, 1 };
-  RunTest(input_values, 1, nn);
+  //RunTest(input_values, 1, nn);
 
   input_values = { 0, 1, 1 };
   RunTest(input_values, 1, nn);
 
   input_values = { 0, 0, 1 };
-  RunTest(input_values, 0, nn);
+  //RunTest(input_values, 0, nn);
 }
 
 
 TEST_LIST = {
-    { "test_VectorSubtract",  test_VectorSubtract },
-    { "test_BackPropagateError", test_BackPropagateError },
-    { "test_BackPropagateFull", test_BackPropagateFull },
     { "test_Helpers",  test_Helpers },
+    { "test_VectorSubtract",  test_VectorSubtract },
+    { "testInitialDeltas", testInitialDeltas },
+    { "test_BackPropagateError", test_BackPropagateError },
     { "test_UpdateWeights", test_UpdateWeights },
+    { "test_BackPropagateFull", test_BackPropagateFull },
     { "test_TrainOR", test_TrainOR },
     { 0 }
 };

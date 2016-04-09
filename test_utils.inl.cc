@@ -12,12 +12,16 @@ using namespace std;
 const string PrintVector(const vector<double> &v);
 int VectorToBinaryClass(const vector<double> &vec);
 double VectorToDouble(const vector<double> &vec);
-
+// Returns TRUE if vectors are almost same. { SUM(vec_1 - vec_2) < threshold }
+bool VecSimilar(const vector<double> &vec_1, const vector<double> &vec_2);
 const string PrintVector(const vector<double> &v) {
   string s = "{";
   string separator = "";
   for (auto i = v.begin(); i != v.end(); ++i) {
-    s += separator + to_string(*i);
+    //s += separator + to_string(*i);
+    char buff[256];
+    snprintf(buff, sizeof(buff), "%0.9f", *i);
+    s += separator + buff;
     separator = ",";
   }
   s += "}";
@@ -34,4 +38,14 @@ int VectorToBinaryClass(const vector<double> &vec) {
 double VectorToDouble(const vector<double> &vec) {
   double sum = std::accumulate(vec.begin(), vec.end(), 0.0f);
   return sum;
+}
+
+bool VecSimilar(const vector<double> &vec_1,
+                      const vector<double> &vec_2) {
+  const double THRESHOLD = 0.000f;
+  vector<double> r;
+  std::transform(vec_1.begin(), vec_1.end(), vec_2.begin(),
+	    std::back_inserter(r),
+	    std::minus<double>());
+	return std::accumulate(r.begin(), r.end(), 0.0f) < THRESHOLD;
 }
