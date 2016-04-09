@@ -5,6 +5,8 @@
 
 using namespace std;
 
+#define PRINT_MATH_TABLES 0
+
 void test_ComputeNode() {
   vector<double> weights = { 1.0, 2.0};
   vector<double> thetas = { 4.0, 0.5 };
@@ -28,19 +30,21 @@ void test_sigmoid() {
   result = sigmoid(test_value);
   expected = 0.0066928509242848554;
   TEST_CHECK_(result == expected, "Got %19.19f expected %9.9f", result, expected);
-  
+
   // Test derivative if sigmoid
   test_value = 0.51f;
   expected = 0.2499000001907347723;
   result = dSigmoid(test_value);
   TEST_CHECK_(result == expected, "Got %19.19f expected %9.9f", result, expected);
 
-  // Test sigmoid function.  
-  printf("x, sigmoid, dSigmoid\n");
-  for (float x = -5.0f; x < 5.0f; x += 0.25f) {
-    double s = sigmoid(x, 5.0);
-    double ds = dSigmoid(s);
-    printf("%0.3f, %0.3f, %0.3f\n", x, s, ds);
+  if (PRINT_MATH_TABLES) {
+    // Test sigmoid function.
+    printf("x, sigmoid, dSigmoid\n");
+    for (float x = -5.0f; x < 5.0f; x += 0.25f) {
+      double s = sigmoid(x, 5.0);
+      double ds = dSigmoid(s);
+      printf("%0.3f, %0.3f, %0.3f\n", x, s, ds);
+    }
   }
 }
 

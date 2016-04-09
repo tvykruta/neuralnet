@@ -31,6 +31,7 @@ using namespace std;
 
 constexpr float LEARNING_RATE = 0.1F;
 constexpr float MOMENTUM = 0.1f;
+//#define  _PRINT_DEBUG_TEXT
 
 void VectorDifference(const vector<double> &vec_1,
                       const vector<double> &vec_2,
@@ -96,50 +97,36 @@ double dSigmoid(const double val) {
     vec_errors = SUM_MUL(deltas_layer2, )
     */
 
-// For each node, does a SUM(delta * node.weight[weightINdex])
-double SumMulWeight(const int weightIndex,
-                    const double delta,
-                    const vector<Node> &nodes) {
-    double val = 0.0f;
-    for (const auto &node : nodes) {
-        val += node.weights[weightIndex];
-    }
-    return val;
-}
 
 // Computes delta terms for previous layer in back propagation.
 // Since we store weights as "incoming" must re-index since we want "outgoing".
 //
 // For each node, delta is computed as  F(SUM(outgoing_weights*next_layer_deltas))
 // Where F is dSigmoid.
-bool BackPropagateErrorInLayer(const vector<double> &delta_next_layer,
-                               const vector<Node> &nodes_next_layer,
-                               vector<double> *output_error_term) {
-    double sum_deltas = 0.0;
-    const int num_weights = nodes_next_layer[0].weights.size();
+bool BackPropagateErrorInLayer(const vector<double> &deltas,
+                               const vector<Node> &nodes,
+                               vector<double> *output) {
+    const int num_weights = nodes[0].weights.size();
     vector<double> error_term;
     error_term.resize(num_weights, 0.0);
 
-    // Loop over each output node and accumulate error.
+    // For each weight, loop over each node nad accumulate.
+    // Ie: Accumulate weight 0 for all nodes, then 1, then 2..
     for (int w = 0; w < num_weights; w++) {
-        const double delta = delta_next_layer[w];
-        for (int d = 0; d < delta_next_layer.size(); d++) {
-            error_term[d] += SumMulWeight(w, delta, nodes_next_layer);
+        for (int n = 0; n < nodes.size(); n++) {
+            const double delta = deltas[n];
+            const auto &node = nodes[n];
+            error_term[w] += node.weights[w] * delta;
         }
     }
 
-    *output_error_term = error_term;
+    *output = error_term;
     return true;
 }
 
-bool func(double a) { return 1; }
+// Does an in-place modification of data. Computes dSigmoid of each value.
 bool ApplyDerivativeActivation(vector<double> *vec) {
     assert(!vec->empty());
-/*    // Activation dSigmoid term
-    for (auto *value : *vec) {
-      *value = dSigmoid(*value);
-    }
-*/
     std::transform(vec->begin(), vec->end(), vec->begin(),
                    [](double x) { return dSigmoid(x); });
 }
@@ -148,6 +135,10 @@ bool ApplyDerivativeActivation(vector<double> *vec) {
 bool UpdateNodeWeights(const double delta, vector<double> *weights) {
   for (int i = 0; i < weights->size(); i++) {
     const double new_theta = (*weights)[i] + LEARNING_RATE * delta;
+#ifdef _PRINT_DEBUG_TEXT
+    printf("updating weight %i, w[%f] + LEARNING_RATE * delta[%f]=%f\n",
+        i, (*weights)[i], delta, new_theta);
+#endif
     (*weights)[i] = new_theta;
   }
   return true;
@@ -159,43 +150,86 @@ bool ComputeInitialDeltas(const vector<double> &labeled_data_inputs,
                           const vector<Layer> &layers,
                           vector<double> *output_deltas) {
   vector<double> computed_values;
-  DoForwardPropagate(labeled_data_inputs, layers, &computed_values);
+  if (!DoForwardPropagate(labeled_data_inputs, layers, &computed_values)) {
+    return false;
+  }
   vector<double> deltas;
+  assert(computed_values.size() == labeled_data_outputs.size());
 
   // Compute difference from labeled (expected) output
   VectorDifference(computed_values, labeled_data_outputs, &deltas);
+
+  // Compute mean of error.
+  double sum = std::accumulate(computed_values.begin(), computed_values.end(), 0.0);
+  double mean = sum / computed_values.size();
+  printf("Mean training error : %f\n", mean);
+
   ApplyDerivativeActivation(&deltas);
   *output_deltas = deltas;
+  return true;
 }
 
-bool NeuralNetwork::BackPropagate(const vector<double> &labeled_data_inputs,
-                                  const vector<double> &labeled_data_outputs) {
+// Update weights of each neuron (reverse direction) by subtracting the delta
+// term (computed error).
+bool UpdateWeights(const vector< vector<double> > &deltas_mat,
+                   vector<Layer> *layers) {
+  assert(deltas_mat.size() == layers->size() - 1);
+  // Note, that there is no first layer for deltas.
+  for (int l = deltas_mat.size() - 1; l >= 0; l--) {
+    const vector<double> &deltas = deltas_mat[l];
+    auto *layer = &layers->at(l+1);
+    if(deltas.size() != layer->nodes.size() ) {
+      cout << "tvykruta: layer # " << l <<  " deltas " << deltas.size() << " nodes " << layer->nodes.size() << "\n";
+    }
 
+    assert(deltas.size() == layer->nodes.size());
+    for (int n = 0; n < layer->nodes.size(); n++) {
+      auto *node = &layer->nodes[n];
+      if (!UpdateNodeWeights(deltas[n], &node->weights)) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+bool BackPropagate(const vector<double> &labeled_data_inputs,
+                   const vector<double> &labeled_data_outputs,
+                   const vector<Layer> &layers,
+                   vector< vector<double> > *output_deltas_mat) {
   vector<double> initial_deltas;
-  bool f = ComputeInitialDeltas(labeled_data_inputs, labeled_data_outputs, layers, &initial_deltas);
-  assert(f);
-  vector< vector<double> > output_layers;
+  bool ret = ComputeInitialDeltas(labeled_data_inputs, labeled_data_outputs,
+                                  layers, &initial_deltas);
+  assert(ret);
+  vector< vector<double> > new_deltas;
   vector<double> *deltas = &initial_deltas;
+  new_deltas.push_back(initial_deltas);
   // Accumulate
-  for (int i = layers.size() - 1; i > 0; i--) {
+  for (int i = layers.size() - 1; i > 1; i--) {
       const auto &layer = layers[i];
       vector<double> output_deltas;
       BackPropagateErrorInLayer(*deltas,
                                 layer.nodes,
                                 &output_deltas);
-      output_layers.push_back(output_deltas);
-      deltas = &output_layers.back();
+      ApplyDerivativeActivation(&output_deltas);
+      new_deltas.push_back(output_deltas);
+      deltas = &new_deltas.back();
   }
-  std::reverse(output_layers.begin(), output_layers.end());
-
-  // Update weights of each neuron (reverse direction)
-  for (int l = output_layers.size(); l > 1; l++) {
-    const vector<double> &layer_deltas = output_layers[l];
-    for (int i = 0; i < layers[l].nodes.size(); i++) {
-      auto *node = &layers[l].nodes[i];
-      const double delta = layer_deltas[l];
-      UpdateNodeWeights(delta, &node->weights);
-    }
-  }
-
+  std::reverse(new_deltas.begin(), new_deltas.end());
+  *output_deltas_mat = new_deltas;
+  return true;
 }
+
+bool NeuralNetwork::BackPropagate(const vector<double> &labeled_data_inputs,
+                                  const vector<double> &labeled_data_outputs) {
+  vector< vector<double> > output_deltas;
+  bool ret = ::BackPropagate(labeled_data_inputs, labeled_data_outputs,
+                             layers, &output_deltas);
+  if (!ret) return ret;
+
+  ret = UpdateWeights(output_deltas, &layers);
+  if (!ret) return ret;
+
+  return true;
+}
+

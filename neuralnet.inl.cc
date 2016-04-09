@@ -39,8 +39,8 @@ bool NeuralNetwork::Create(const int input_nodes, const int hidden_nodes, const 
 }
 
 // Forward propagate the network and compute output values
-bool NeuralNetwork::ForwardPropagate(const vector<double> &input_values,
-                                     vector<double> *output_values) {
+const bool NeuralNetwork::ForwardPropagate(const vector<double> &input_values,
+                                     vector<double> *output_values) const {
   if (layers.size() < 2) {
     cout << "Invalid network, needs 2 or more layers.";
     return false;

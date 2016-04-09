@@ -82,12 +82,25 @@ public:
   // For debugging only, seed weights. Must match node structure.
   bool LoadWeights(const vector<vector<double>> &weights);
   // Run forward propagation and update output values.
-  bool ForwardPropagate(const vector<double> &input_values,
-                        vector<double> *output_values);
+  const bool ForwardPropagate(const vector<double> &input_values,
+                        vector<double> *output_values) const;
 
   // For debugging, draws the network as ASCII.
-  string DebugDraw() const {
+  void PrintDebug() const {
+    cout << "=== NEURAL NET WITH " << layers.size() << " LAYERS ===";
     // TODO: Add code to draw ascii graph
+    for (int l = 0; l < layers.size(); l++) {
+      const auto &layer = layers[l];
+      for (int n = 0; n < layer.nodes.size(); n++) {
+        cout << " [ ";
+        const auto &node = layer.nodes[n];
+        for (int w = 0; w < node.weights.size(); w++) {
+          printf("%f ", node.weights[w]);
+        }
+        cout << " ] ";
+      }
+      cout << "\n";
+    }
   }
 
 public:

@@ -1,18 +1,23 @@
 // Simple unit testing for NeuralNet class.
 // We use the "CuTest" unit test library.
+#include <functional>
 #include <iostream>
 #include <memory>
+#include <numeric>
+#include <string>
 #include <vector>
 
-string PrintVector(vector<double> v);
+using namespace std;
+
+const string PrintVector(const vector<double> &v);
 int VectorToBinaryClass(const vector<double> &vec);
 double VectorToDouble(const vector<double> &vec);
 
-string PrintVector(vector<double> v) {
+const string PrintVector(const vector<double> &v) {
   string s = "{";
   string separator = "";
   for (auto i = v.begin(); i != v.end(); ++i) {
-    s += to_string(*i) + separator;
+    s += separator + to_string(*i);
     separator = ",";
   }
   s += "}";
