@@ -1,5 +1,6 @@
 // Simple unit testing for NeuralNet class.
 // We use the "CuTest" unit test library.
+#include <algorithm>
 #include <functional>
 #include <iostream>
 #include <memory>
