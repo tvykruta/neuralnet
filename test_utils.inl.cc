@@ -1,3 +1,5 @@
+#ifndef _TEST_UTILS_INL_CC
+#define _TEST_UTILS_INL_CC
 // Simple unit testing for NeuralNet class.
 // We use the "CuTest" unit test library.
 #include <algorithm>
@@ -32,7 +34,8 @@ const string PrintVector(const vector<double> &v) {
 // Helper sum vector and converts to 0 or 1 where < 0.5 = {0} and > 0.5 = {1}.
 int VectorToBinaryClass(const vector<double> &vec) {
   double sum = std::accumulate(vec.begin(), vec.end(), 0.0f);
-  return (int) (sum + 0.5f);
+  assert(sum >= 0.0 && sum <= 1.0);
+  return (sum >= 0.5);
 }
 
 // Helper sum vector and converts to 0 or 1 where < 0.5 = {0} and > 0.5 = {1}.
@@ -43,6 +46,9 @@ double VectorToDouble(const vector<double> &vec) {
 
 bool VecSimilar(const vector<double> &vec_1,
                       const vector<double> &vec_2) {
+  if (vec_1.size() != vec_2.size()) {
+    return false;
+  }
   const double THRESHOLD = 0.000f;
   vector<double> r;
   std::transform(vec_1.begin(), vec_1.end(), vec_2.begin(),
@@ -50,3 +56,5 @@ bool VecSimilar(const vector<double> &vec_1,
 	    std::minus<double>());
 	return std::accumulate(r.begin(), r.end(), 0.0f) < THRESHOLD;
 }
+
+#endif  // _TEST_UTILS_INL_CC

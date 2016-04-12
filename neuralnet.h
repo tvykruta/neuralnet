@@ -32,13 +32,22 @@
 
 using namespace std;
 
+class GlobalInitialize {
+public:
+  GlobalInitialize() {
+    srand (time(NULL));
+  }
+};
+GlobalInitialize g;
+
 // Neuron inside a Neural Net.
 struct Node {
   Node(const int num_weights) {
     weights.resize(num_weights);
     // Seed weight with random # 0..1.
+    const float RAND_EPSILON = 50.0f;
     for (int w = 0; w < num_weights; w++) {
-        weights[w] = rand() / RAND_MAX;
+        weights[w] = 2.0f * RAND_EPSILON * ((float)rand() / RAND_MAX) - RAND_EPSILON;
     }
   }
   // Incoming weights. Each weight corresponds to a node in previous layer.
@@ -74,6 +83,7 @@ struct Layer {
 // Primary implementation.
 class NeuralNetwork {
 public:
+  NeuralNetwork() : last_mean_square_error(-12345.0), num_trained_samples(0) {};
   // Construct simple 3 layer neural network (most common).
   bool Create(const int input_nodes, const int hidden_nodes, const int output_nodes);
   // Construct full neural network with arbitrary # of hidden layers.
@@ -87,17 +97,20 @@ public:
 
   // For debugging, draws the network as ASCII.
   void PrintDebug() const {
-    cout << "=== NEURAL NET WITH " << layers.size() << " LAYERS ===";
+    cout << "=== NEURAL NET WITH " << layers.size() << " LAYERS ===\n";
     // TODO: Add code to draw ascii graph
     for (int l = 0; l < layers.size(); l++) {
+      printf("layer %i: ", l);
       const auto &layer = layers[l];
       for (int n = 0; n < layer.nodes.size(); n++) {
-        cout << " [ ";
         const auto &node = layer.nodes[n];
-        for (int w = 0; w < node.weights.size(); w++) {
-          printf("%f ", node.weights[w]);
-        }
-        cout << " ] ";
+        if (node.weights.size() >= 0) {
+          cout << " [";
+          for (int w = 0; w < node.weights.size(); w++) {
+            printf("%0.3f ", node.weights[w]);
+          }
+          cout << "] ";
+          }
       }
       cout << "\n";
     }
@@ -107,6 +120,8 @@ public:
   // training
   bool BackPropagate(const vector<double> &labeled_data_inputs,
                      const vector<double> &labeled_data_outputs);
+  // Update weights. Call after all training samples.
+  bool UpdateWeights();
 private:
   // Adds layer with N nodes. Each node has array of X weights for incoming
   // nodes.
@@ -120,6 +135,10 @@ private:
 
 public:
   vector<Layer> layers;
+  // For training only.
+  vector< vector<double> > gradients;
+  int num_trained_samples;
+  double last_mean_square_error;
 };
 
 // Forward propagation: Updates weights and transforms through sigmoid.
@@ -132,5 +151,5 @@ bool UpdateLayer(const vector<double> &node_values_previous_layer,
                  vector<double> *node_values_computed);
 bool DoForwardPropagate(const vector<double> &input_values,
                         const vector<Layer> &layers,
-                        vector<double> *output_values);
+                        vector< vector<double> > *activation_values = NULL);
 #endif // NEURALNET_H_

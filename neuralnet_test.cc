@@ -100,43 +100,84 @@ void test_NeuralNet_2x1() {
   }
 
   // logical AND.
+  // 1 & 1 = 1
+  // 1 & 0 = 0
+  // 1 & 1 = 1
+  // 0 & 0 = 0
   {
-    const vector<vector<double>> weights_init = { { -2.0f, 1.0f, 1.0f } };
+    const vector<vector<double>> weights_init = { { 20.0, 20.0, -30.0 } };
     TEST_CHECK(nn.LoadWeights(weights_init));
 
-    // First value is always 1, bias value.
-    // 1 & 0 == 0
-    vector<double> input_values = { 1, 1, 0 };
-    TEST_CHECK(nn.ForwardPropagate(input_values, &output_values));
-    TEST_CHECK_(0== VectorToBinaryClass(output_values),
-                "Got %s", PrintVector(output_values).c_str());
-
+    // Third value is always 1, bias value.
     // 1 & 1 == 1
+    vector<double> input_values;
     input_values = { 1, 1, 1 };
     TEST_CHECK(nn.ForwardPropagate(input_values, &output_values));
-    TEST_CHECK((1 & 1) == VectorToBinaryClass(output_values));
-  }
-
-  // logical XOR.
-  {
-    const vector<vector<double>> weights_init = { { -2.0f, 1.0f, 1.0f } };
-    TEST_CHECK(nn.LoadWeights(weights_init));
-
-    // First value is always 1, bias value.
-    // 1 & 0 == 0
-    vector<double> input_values = { 1, 1, 0 };
-    TEST_CHECK(nn.ForwardPropagate(input_values, &output_values));
-    TEST_CHECK_(0== VectorToBinaryClass(output_values),
+    TEST_CHECK_(1 == VectorToBinaryClass(output_values),
                 "Got %s", PrintVector(output_values).c_str());
-
-    // 1 & 1 == 1
-    input_values = { 1, 1, 1 };
+    // 1 & 0 == 0
+    input_values = { 1, 0, 1 };
     TEST_CHECK(nn.ForwardPropagate(input_values, &output_values));
-    TEST_CHECK((1 & 1) == VectorToBinaryClass(output_values));
+    TEST_CHECK_(0 == VectorToBinaryClass(output_values),
+                "Got %s", PrintVector(output_values).c_str());
+    // 0 & 1 == 0
+    input_values = { 0, 1, 1 };
+    TEST_CHECK(nn.ForwardPropagate(input_values, &output_values));
+    TEST_CHECK_(0 == VectorToBinaryClass(output_values),
+                "Got %s", PrintVector(output_values).c_str());
+    // 0 & 0 == 0
+    input_values = { 0, 0, 1 };
+    TEST_CHECK(nn.ForwardPropagate(input_values, &output_values));
+    TEST_CHECK_(0 == VectorToBinaryClass(output_values),
+                "Got %s", PrintVector(output_values).c_str());
   }
-
 }
 
+// Test XOR
+void test_NeuralNet_3z3x1() {
+  vector<double> output_values;
+  NeuralNetwork nn;
+  const vector<int> nodes_per_layer = {3, 3, 1};
+  TEST_CHECK(nn.Create(nodes_per_layer));
+  // logical XOR.
+
+  const vector<vector<double>> weights_init = {
+    { -2.0f, 1.0f, 1.0f }, { 1.0, 1.0, 1.0}, { 1.0, 1.0, 1.0},
+                        { 1.0, 1.0, 1.0} };
+  TEST_CHECK(nn.LoadWeights(weights_init));
+
+  // First value is always 1, bias value.
+  // 1 & 0 == 0
+  // Now test the network
+  // 1 ^ 1 = 0
+  // 1 ^ 0 = 1
+  // 0 ^ 1 = 1
+  // 0 ^ 0 = 0
+  vector<double> input_values = { 1, 1, 0 };
+  TEST_CHECK(nn.ForwardPropagate(input_values, &output_values));
+  TEST_CHECK_(0== VectorToBinaryClass(output_values),
+              "Got %s", PrintVector(output_values).c_str());
+
+  // 1 ^ 1 == 0
+  input_values = { 1, 1, 1 };
+  TEST_CHECK(nn.ForwardPropagate(input_values, &output_values));
+  TEST_CHECK(0 == VectorToBinaryClass(output_values));
+
+  // 1 ^ 0 == 1
+  input_values = { 1, 0, 1 };
+  TEST_CHECK(nn.ForwardPropagate(input_values, &output_values));
+  TEST_CHECK(1 == VectorToBinaryClass(output_values));
+
+  // 0 ^ 1 == 1
+  input_values = { 0, 1, 1 };
+  TEST_CHECK(nn.ForwardPropagate(input_values, &output_values));
+  TEST_CHECK(1 == VectorToBinaryClass(output_values));
+
+  // 0 ^ 0 == 0
+  input_values = { 0, 0, 1 };
+  TEST_CHECK(nn.ForwardPropagate(input_values, &output_values));
+  TEST_CHECK(0 == VectorToBinaryClass(output_values));
+}
 
 void test_NeuralNet_2x2x1() {
   // Initialize a neural network with weights for each node.
