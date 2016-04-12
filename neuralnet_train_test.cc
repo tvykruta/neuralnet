@@ -247,10 +247,10 @@ void test_TrainAND() {
 void test_TrainXOR() {
   NeuralNetwork nn;
   // Create neira; met wotj 3 input nodes, 1 output nodes.
-  TEST_CHECK(nn.Create( { 2, 2, 1 } ));
+  TEST_CHECK(nn.Create( { 3, 3, 1 } ));
   nn.PrintDebug();
 
-  for (int i = 0; i < 1000; i++) {
+  for (int i = 0; i < 2000; i++) {
     {
       const vector<double> training_inputs = { 1, 1, 1 };
       const vector<double> training_outputs = { 0 };
