@@ -20,11 +20,6 @@ void test_Helpers() {
   VectorDifference(a, b, &result);
   TEST_CHECK(result[0] == 0.9 && result[1] == 1.8);
 
-  vector<double> outputs = { 0.5, 0.51 };
-  ApplyDerivativeActivation(&outputs);
-  TEST_CHECK(outputs[0] == dSigmoid(0.5));
-  TEST_CHECK(outputs[1] == dSigmoid(0.51));
-
   float e = (float)ComputeMeanSquaredError(a, b);
   TEST_CHECK_(e > 2.0 && e < 2.3, "%0.19f expected", e);
 }
@@ -72,7 +67,7 @@ void test_BackPropagateError() {
   TEST_CHECK(nn.LoadWeights(weights));
   // Simulate back propagation from a 2 node layer to a 3 node layer.
   const vector<double> activations = { 0.5, 0.5, 0.5 };
-  vector<double> deltas  = { 2.0, 3.0 };
+  vector<double> deltas = { 2.0, 3.0 };
 
   /*
   We created the network below. The operations move from bottom to top.
@@ -105,14 +100,12 @@ void test_UpdateWeights() {
   TEST_CHECK(nn.LoadWeights(init_weights));
 
   // Learning rate is 0.1.
-  vector< vector<double> > gradients = { { },{ 20.0, 30.0 },
-                                            { 10.0 } };
 
   vector< vector<double> > expected  = {{ },  { 4.0, 4.1 }, { 6.0, 6.1 },
                                                { 2.0, 2.1 } };
 
-  TEST_CHECK(UpdateWeights(gradients, 2, &nn.layers));
-
+  TEST_CHECK(UpdateWeights(2, &nn.layers));
+/*
   int node_counter = 0;
   for (int l = 1; l <  nn.layers.size(); l++) {
     const auto& layer = nn.layers[l];
@@ -129,36 +122,33 @@ void test_UpdateWeights() {
       node_counter++;
     }
   }
+  */
 }
 
 void test_AccumulateGradients() {
-  vector< vector<double> > activations = { { 0.0, 0.0 },
-                                           { 1.1, 1.2 },
-                                           { 2.0 } };
-  vector< vector<double> > deltas = { { },
-                                      { 2.0, 2.1 },
-                                      { 3.0 }};
-  vector< vector<double> > gradients = { { },
-                                         { 0.1, 0.2 },
-                                         { 0.3 } };
-  vector< vector<double> > expected { { },
-                                      { 2.3, 2.72 },
-                                      { 6.3 } };
+  NeuralNetwork nn;
+  // Create 2 input 1 output node network, 2 thetas only (2 gradients).
+  vector<int> init_layers = { 2, 1 };
+  TEST_CHECK(nn.Create(init_layers));
+  vector< vector<double> > activations = { {1.0, 1.0 }, { 2.0 } };
+  vector< vector<double> > deltas = { { }, { 3.0 } };
+  vector<double> expected = { 3.0, 3.0 };
 
   // Computes: g(l) += d(l+1) * a(l)
   // let l = 0
   // g(0) = {3.0 * 1.1}, { 3.0 * 1.2 }
   // g(0) = {3.3, 3.6}
-  TEST_CHECK(AccumulateGradients(activations, deltas, &gradients));
-  for (int i = 0; i < gradients.size(); i++) {
-    auto &gradient = gradients[i];
-    auto &expectedval = expected[i];
-    TEST_CHECK_(std::equal(std::begin(gradient), std::end(gradient),
-                std::begin(expectedval)),
-                "Got %s expected %s",
-                PrintVector(gradient).c_str(),
-                PrintVector(expectedval).c_str());
-  }
+  TEST_CHECK(AccumulateGradients(activations, deltas, &nn.layers));
+  vector<Layer> &gradients = nn.layers;
+  TEST_CHECK(gradients.size() == 2);
+  TEST_CHECK(gradients[1].nodes.size() == 1);
+  auto &gradient = gradients[1].nodes[0].gradients;
+  TEST_CHECK(gradient.size() == 2);
+  TEST_CHECK_(std::equal(std::begin(gradient), std::end(gradient),
+                  std::begin(expected)),
+                  "Got %s expected %s",
+                  PrintVector(gradient).c_str(),
+                  PrintVector(expected).c_str());
 }
 
 void test_BackPropagateFull() {
@@ -208,7 +198,7 @@ void test_TrainAND() {
   vector<double> training_inputs;
   vector<double> training_outputs;
 
-  for (int i = 0; i < 1000; i++) {
+  for (int i = 0; i < 10000; i++) {
     training_inputs = { 1, 1, 1 };
     training_outputs = { 1 };
     TEST_CHECK(nn.BackPropagate(training_inputs, training_outputs));
@@ -257,7 +247,7 @@ void test_TrainAND() {
 void test_TrainXOR() {
   NeuralNetwork nn;
   // Create neira; met wotj 3 input nodes, 1 output nodes.
-  TEST_CHECK(nn.Create( { 3, 3, 1 } ));
+  TEST_CHECK(nn.Create( { 2, 2, 1 } ));
   nn.PrintDebug();
 
   for (int i = 0; i < 1000; i++) {
@@ -281,6 +271,7 @@ void test_TrainXOR() {
       const vector<double> training_outputs = { 0 };
       TEST_CHECK(nn.BackPropagate(training_inputs, training_outputs));
     }
+    TEST_CHECK(nn.UpdateWeights());
   }
 
   nn.PrintDebug();

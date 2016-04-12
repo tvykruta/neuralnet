@@ -113,7 +113,7 @@ bool NeuralNetwork::Create(const vector<int> &nodes_per_layer) {
     AddLayer(l, num_nodes_previous_layer);
     num_nodes_previous_layer = l;
   }
-  // Set up gradients for training computation. Add empty gradients for first layer.
+  // Set up gradients for training computation. 1 gradient per theta (weight).
   gradients.resize(nodes_per_layer.size());
   for (int l = 1; l < nodes_per_layer.size(); l++) {
     gradients[l].resize(nodes_per_layer[l], 0.0);

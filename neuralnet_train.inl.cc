@@ -30,8 +30,7 @@ using namespace std;
 // 2. Backwards-propagate the error through each node.
 // 3. Compute deltas and adjust weights of each node to reduce errors.
 
-constexpr float LEARNING_RATE = 0.1F;
-constexpr float MOMENTUM = 0.1f;
+constexpr float LEARNING_RATE = 0.2F;
 //#define  _PRINT_DEBUG_TEXT
 
 
@@ -146,26 +145,6 @@ bool BackPropagateErrorInLayer(const vector<double> &deltas,
     return true;
 }
 
-// Does an in-place modification of data. Computes dSigmoid of each value.
-bool ApplyDerivativeActivation(vector<double> *vec) {
-    assert(!vec->empty());
-    std::transform(vec->begin(), vec->end(), vec->begin(),
-                   [](double x) { return dSigmoid(x); });
-}
-
-// new_theta = old_theta + learning_rate * average_gradient
-bool UpdateNodeWeights(const double gradient, vector<double> *weights) {
-  for (int i = 0; i < weights->size(); i++) {
-    const double new_theta = (*weights)[i] - LEARNING_RATE * gradient;
-#ifdef _PRINT_DEBUG_TEXT
-    printf("updating weight %i, w[%f] + LEARNING_RATE * gradient[%f]=%f\n",
-        i, (*weights)[i], gradient, new_theta);
-#endif
-    (*weights)[i] = new_theta;
-  }
-  return true;
-}
-
 // Mean squared error: ABS((VEC_1 - VEC_2))^2
 double ComputeMeanSquaredError(const vector<double> &vec1,
                                const vector<double> &vec2) {
@@ -181,62 +160,37 @@ double ComputeMeanSquaredError(const vector<double> &vec1,
   return mean;
 }
 
-// Update weights of each neuron (reverse direction) by subtracting the delta
-// term (computed error).
-bool UpdateWeights(const vector< vector<double> > &gradients_mat,
-    const int num_trained_samples, vector<Layer> *layers) {
-  assert(gradients_mat.size() == layers->size());
-  // Note, that there is no first layer for gradients.
-  for (int l = gradients_mat.size() - 1; l >= 1; l--) {
-    const vector<double> &gradients = gradients_mat[l];
-    auto *layer = &layers->at(l);
-    if(gradients.size() != layer->nodes.size() ) {
-      cout << "tvykruta: layer # " << l <<  " gradients " << gradients.size() << " nodes " << layer->nodes.size() << "\n";
-    }
-
-    assert(gradients.size() == layer->nodes.size());
-    double d1_trainingsamples = 1.0 / (double)num_trained_samples;
-    for (int n = 0; n < layer->nodes.size(); n++) {
-      auto *node = &layer->nodes[n];
-      if (!UpdateNodeWeights(gradients[n] * d1_trainingsamples, &node->weights)) {
-        return false;
-      }
-    }
+// g(l) += d(l+1) * a(l)
+// deltas = layer L
+// activations = layer L-1
+// gradients = for thetas from L-1 to L
+bool AccumulateGradient(const double delta,
+                        const vector<double> &activations,
+                        vector<double> *gradients) {
+  // Loop over incoming weights.
+  assert(activations.size() == gradients->size());
+  for (int w = 0; w < gradients->size(); w++) {
+    double gradient = delta * activations[w];
+    gradients->at(w) += gradient;
   }
   return true;
 }
 
-
-
-// g(l) += d(l+1) * a(l)
-bool AccumulateGradient(const vector<double> &deltas,
-                        const vector<double> &activations,
-                        vector<double> *gradients) {
-  assert(deltas.size() == activations.size());
-  // gradient = deltas * activations
-  vector<double> temp (4);
-  std::transform(deltas.begin(), deltas.end(), activations.begin(),
-                 temp.begin(), std::multiplies<double>());
-  // gradients += gradient
-  std::transform(gradients->begin(), gradients->end(), temp.begin(),
-                 gradients->begin(), std::plus<double>());
-}
-
-// Computes gradients and accuulates into gradients matrix.
+// Computes gradients and accumulates into gradients matrix.
+// For each theta, we accumulate the next layer node's delta term.
+// layers contains node,each node contains incoming gradients.
 // g(l) += d(l+1) * a(l)
 bool AccumulateGradients(const vector< vector<double> > &activations,
                          const vector< vector<double> > &deltas,
-                         vector< vector<double> > *gradients) {
-  assert(activations.size() == gradients->size());
-  assert(activations.size() == deltas.size());
-
-  for (int l = 1; l < activations.size(); l++) {
-   //printf("l %i gradients %lu activations %lu  \n", l, gradients->at(l).size(), activations[l].size());
-    assert(gradients->at(l).size() == activations[l].size());
-    //printf("l %i deltas %lu activations %lu  \n", l, deltas[l].size(), activations[l].size());
-    assert( deltas[l].size() == activations[l].size());
-    vector<double> *gradient = &(*gradients)[l];
-    AccumulateGradient(deltas[l], activations[l], gradient);
+                         vector<Layer> *layers) {
+  for (int l = layers->size() - 1; l >= 1; l--) {
+    Layer &layer = layers->at(l);
+    assert(layer.nodes.size() == deltas[l].size());
+    for (int n = 0; n < layer.nodes.size(); n++) {
+      Node &node = layer.nodes[n];
+      assert(activations[l-1].size() == node.gradients.size());
+      AccumulateGradient(deltas[l][n], activations[l-1], &node.gradients);
+    }
   }
   return true;
 }
@@ -246,7 +200,7 @@ bool AccumulateGradients(const vector< vector<double> > &activations,
 bool BackPropagate(const vector<double> &labeled_data_inputs,
                    const vector<double> &labeled_data_outputs,
                    const vector<Layer> &layers,
-                   vector< vector<double> > *gradients) {
+                  vector<Layer> *gradients) {
   // First forward propagate, generate 'a' terms.
   vector< vector<double> > activations;
   if (!DoForwardPropagate(labeled_data_inputs, layers, &activations)) {
@@ -287,7 +241,7 @@ bool BackPropagate(const vector<double> &labeled_data_inputs,
 bool NeuralNetwork::BackPropagate(const vector<double> &labeled_data_inputs,
                                   const vector<double> &labeled_data_outputs) {
   bool ret = ::BackPropagate(labeled_data_inputs, labeled_data_outputs,
-                             layers, &gradients);
+                             layers, &layers);
 
   // Compute mean square error.
   vector< vector<double> > activations;
@@ -302,21 +256,30 @@ bool NeuralNetwork::BackPropagate(const vector<double> &labeled_data_inputs,
   return ret;
 }
 
-void ZeroMatrix(vector< vector<double> > *mat) {
-  for (auto &row : *mat) {
-    std::fill(row.begin(), row.end(), 0.0);
+// Update thetas of each node by adding bias*gradient.
+bool UpdateWeights(const int num_trained_samples, vector<Layer> *layers) {
+  double d1_trainingsamples = 1.0 / (double)num_trained_samples;
+  // Note, that there is no first layer for gradients.
+  for (auto &layer : *layers) {
+    for (int n = 0; n < layer.nodes.size(); n++) {
+      auto &node = layer.nodes[n];
+      for (int w = 0; w < node.weights.size(); w++) {
+        node.weights[w] += -d1_trainingsamples * node.gradients[w] * LEARNING_RATE;
+        node.gradients[w] = 0.0;
+      }
+    }
   }
+  return true;
 }
+
 
 // Update weights, call after all training samples have been run.
 bool NeuralNetwork::UpdateWeights() {
   assert(num_trained_samples > 0);
-  if (!::UpdateWeights(gradients, num_trained_samples, &layers)) {
+  if (!::UpdateWeights(num_trained_samples, &layers)) {
     return false;
   }
 
   num_trained_samples = 0;
-  ZeroMatrix(&gradients);
   return true;
-  // TODO: Do another forwadr propagation and compute new MSE.
 }

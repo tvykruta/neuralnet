@@ -44,16 +44,17 @@ GlobalInitialize g;
 struct Node {
   Node(const int num_weights) {
     weights.resize(num_weights);
-    // Seed weight with random # 0..1.
-    const float RAND_EPSILON = 50.0f;
+    gradients.resize(num_weights, 0.0);
+    // Seed random weight.
+    const float RAND_EPSILON = 20.0f;
     for (int w = 0; w < num_weights; w++) {
         weights[w] = 2.0f * RAND_EPSILON * ((float)rand() / RAND_MAX) - RAND_EPSILON;
     }
   }
   // Incoming weights. Each weight corresponds to a node in previous layer.
   vector<double> weights;
-  // Outgoing weights, only used for back-propagation.
-  vector<double> out_weights;
+  // Gradients used for back-propagation. Accumulated for each training set.
+  vector<double> gradients;
 };
 
 // Layer inside the neural network composed of one or more nodes.
@@ -69,14 +70,10 @@ struct Layer {
     for (int i = 0; i < num_nodes; i++) {
       nodes.emplace_back(num_weights);
     }
-    node_thetas.resize(num_nodes);
-    node_values_computed.resize(num_nodes);
     return true;
   }
 
   vector<Node> nodes;  // Array of Nodes in this layer
-  vector<double> node_thetas;  // Array of thetas corresponding to nodes above.
-  vector<double> node_values_computed;  // Computed values in forward propagation.
 };
 
 
