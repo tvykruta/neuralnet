@@ -33,30 +33,6 @@ void test_VectorSubtract() {
   TEST_CHECK(result == expected);
 }
 
-void testInitialDeltas() {
-  /*&
-  NeuralNetwork nn;
-  TEST_CHECK(nn.Create( { 2, 1 } ));
-  // Set up weights simple 2 layer network.
-  const vector<double> test_data_inputs = { 1.0, 2.0 };
-  const vector<vector<double>> weights = { { 0.5, 0.1 } };
-  TEST_CHECK(nn.LoadWeights(weights));
-  // Compute expected result:
-  // 0.5 * 1.0 + 0.1 * 2.0 = 0.7
-  // a = sigmoid(0.7)
-  // expected_deltas = (0.9 - a)
-  const vector<double> test_data_outputs = { 0.9 };
-  const vector<double> expected_deltas = { 0.9 - sigmoid(0.7) };
-  vector<double> output;
-  TEST_CHECK(ComputeInitialDeltas(test_data_inputs, test_data_outputs,
-                                  nn.layers, &output));
-  TEST_CHECK_(std::equal(std::begin(output), std::end(output),
-              std::begin(expected_deltas)),
-              "Output: %0.9f expected %0.9f diff %0.9f",
-              output[0], expected_deltas[0], output[0] - expected_deltas[0]);
-  */
-}
-
 // Back propagate a single layer
 void test_BackPropagateError() {
   NeuralNetwork nn;
@@ -80,7 +56,7 @@ void test_BackPropagateError() {
   delta:          (2.0)                 (3.0)
   */
   vector<double> output_deltas;
-  TEST_CHECK(BackPropagateErrorInLayer(deltas,
+  TEST_CHECK(BackPropagateDelta(deltas,
       nn.layers[1].nodes,
       activations,
       0,
@@ -94,7 +70,7 @@ void test_BackPropagateError() {
 
   // Test bias node skipping. Should not accumulate first node.
   output_deltas.clear();
-  TEST_CHECK(BackPropagateErrorInLayer(deltas,
+  TEST_CHECK(BackPropagateDelta(deltas,
       nn.layers[1].nodes,
       activations,
       1,
@@ -107,16 +83,25 @@ void test_BackPropagateError() {
 }
 
 void test_UpdateWeights() {
+  // Gradients are applied to weights as:
+  // weight += -TRAINING_BIAS * gradient / num_samples
+  // So for the lowest node we expected
+  // 1.0 += 2.0 * -0.1 / 10 = 0.098
   NeuralNetwork nn;
-  TEST_CHECK(nn.Create( { 1, 1, 1 } ));
-  const vector<vector<double>> init_weights = { { 2.0, 2.1 }, { 3.0, 3.1 },
-                                                  { 1.0, 1.1 } };
+  TEST_CHECK(nn.Create( { 2, 2, 1 } ));
+  const vector<vector<double>> init_weights = { { 1.0, 1.0, 1.0 }, { 1.0, 1.0, 1.0 },
+                                                  { 1.0, 1.0, 1.0 } };
   TEST_CHECK(nn.LoadWeights(init_weights));
-  vector< vector<double> > expected  = {{ },  { 4.0, 4.1 }, { 6.0, 6.1 },
-                                               { 2.0, 2.1 } };
 
-  TEST_CHECK(UpdateWeights(2, &nn.layers));
-/*
+  // Fill in some gradients.
+  const vector<vector<double>> init_gradients = { { 2.0, 2.1, 2.2 }, { 3.0, 3.1, 3.2 },
+                                                  { 1.0, 1.1, 1.2 } };
+  TEST_CHECK(nn.LoadGradients(init_gradients));
+  TEST_CHECK(UpdateWeights(10, &nn.layers));
+
+  vector< vector<double> > expected  = { {}, { 0.93999, 0.937999, 0.9359999 }, { 0.93999, 0.937999, 0.935999 },
+                                               { 0.98, 0.978, 0.976 } };
+  // Check gradients
   int node_counter = 0;
   for (int l = 1; l <  nn.layers.size(); l++) {
     const auto& layer = nn.layers[l];
@@ -125,15 +110,14 @@ void test_UpdateWeights() {
 
       assert(node_counter < expected.size());
       const vector<double> &expected_node = expected[node_counter];
+
       TEST_CHECK_(VecSimilar(expected_node, weights),
-                  "Expected %s got %s diff %0.9f",
+                  "Expected %s got %s \n",
                   PrintVector(expected_node).c_str(),
-                  PrintVector(weights).c_str(),
-                  expected_node[0] - weights[0]);
+                  PrintVector(weights).c_str());
       node_counter++;
     }
   }
-  */
 }
 
 void test_AccumulateGradients() {
@@ -271,7 +255,7 @@ void test_TrainXOR() {
   TEST_CHECK(nn.Create( { 2, 2, 1 } ));
   nn.PrintDebug();
 
-  for (int i = 0; i < 10000; i++) {
+  for (int i = 0; i < 1000; i++) {
     {
       const vector<double> training_inputs = { 1, 1 };
       const vector<double> training_outputs = { 0 };
@@ -366,13 +350,12 @@ void test_TrainXNOR() {
 TEST_LIST = {
       { "test_Helpers",  test_Helpers },
       { "test_VectorSubtract",  test_VectorSubtract },
-      { "testInitialDeltas", testInitialDeltas },
       { "test_BackPropagateError", test_BackPropagateError },
       { "test_UpdateWeights", test_UpdateWeights },
       { "test_AccumulateGradients", test_AccumulateGradients },
       { "test_BackPropagateFull", test_BackPropagateFull },
       //{ "test_TrainAND", test_TrainAND },
-      //{ "test_TrainXOR", test_TrainXOR },
-      { "test_TrainXNOR", test_TrainXNOR },
+      { "test_TrainXOR", test_TrainXOR },
+      //{ "test_TrainXNOR", test_TrainXNOR },
       { 0 }
 };

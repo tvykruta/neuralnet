@@ -25,6 +25,10 @@ using namespace std;
 bool UpdateNode(const vector<double> &thetas,
                 const vector<double> &weights,
                 double *output_value) {
+  if (weights.size() == 0) {
+    // skip bias nodes with no weights
+    return true;
+  }
   assert(thetas.size() == weights.size());
   double val = ComputeNode(weights, thetas);
   val = sigmoid(val);
@@ -119,6 +123,14 @@ bool AddLayer(const int num_nodes, const int num_nodes_previous_layer,
     layers->emplace_back(num_nodes, num_nodes_previous_layer);
 }
 
+void ZeroArray(vector<double> *vec) {
+  fill(vec->begin(), vec->end(), 0.0f);
+}
+
+void ClearArray(vector<double> *vec) {
+  vec->clear();
+}
+
 
 bool NeuralNetwork::Create(const vector<int> &nodes_per_layer) {
   // Need at least 2 layers (input, output)
@@ -126,13 +138,15 @@ bool NeuralNetwork::Create(const vector<int> &nodes_per_layer) {
 
   int node_count_previous_layer = 0;
   for (int l = 0; l < nodes_per_layer.size(); l++) {
-    int node_count = nodes_per_layer[l];
-    if (node_count < 1 ) return false;
-    if (l < nodes_per_layer.size() - 1) {
-      node_count++; // bias unit
-    }
+    bool has_bias_unit = (l < nodes_per_layer.size() - 1);
+    int node_count = nodes_per_layer[l] + has_bias_unit;
     AddLayer(node_count, node_count_previous_layer, &layers);
     node_count_previous_layer = node_count;
+    if (has_bias_unit) {
+      // Bias units don't have any incoming weights
+      ClearArray(&layers.back().nodes[0].weights);
+      ClearArray(&layers.back().nodes[0].gradients);
+    }
   }
   return true;
 }
@@ -173,6 +187,38 @@ bool NeuralNetwork::LoadWeights(const vector<vector<double>> &weights) {
   }
   if (node_global_count != weights.size()) {
     printf("Too many weights expected %i got %lu\n", node_global_count - 1, weights.size());
+    return false;
+  }
+  return true;
+}
+
+// Nasty duplicated code same as Load Weights
+bool NeuralNetwork::LoadGradients(const vector<vector<double>> &gradients) {
+  int node_global_count = 0;
+  for (int l = 1; l < layers.size(); l++) {
+    auto *layer = &layers[l];
+    // Skip loading gradients for bias node.
+    int start_index = 1;
+    if (l == layers.size() - 1) {
+      start_index = 0;
+    }
+    for (int n = start_index; n < layer->nodes.size(); n++) {
+      auto *node = &layer->nodes[n];
+      if (node_global_count >= gradients.size()) {
+        printf("LoadWeights insufficient gradients. Expected %i got %lu.\n",
+            node_global_count, gradients.size());
+        return false;
+      }
+      if (node->gradients.size() != gradients[node_global_count].size()) {
+        printf("LoadWeights count mismatch. Layer %i node %i expected %lu got %lu  // 0 XNOR 1 = 0",
+            l, n, node->gradients.size(), gradients[node_global_count].size());
+        return false;
+      }
+      node->gradients = gradients[node_global_count++];
+    }
+  }
+  if (node_global_count != gradients.size()) {
+    printf("Too many gradients expected %i got %lu\n", node_global_count - 1, gradients.size());
     return false;
   }
   return true;

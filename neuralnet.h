@@ -88,6 +88,8 @@ public:
 
   // For debugging only, seed weights. Must match node structure.
   bool LoadWeights(const vector<vector<double>> &weights);
+  // For debugging only, seed weights. Must match node structure.
+  bool LoadGradients(const vector<vector<double>> &gradients);
   // Run forward propagation and update output values.
   const bool ForwardPropagate(const vector<double> &input_values,
                         vector<double> *output_values) const;

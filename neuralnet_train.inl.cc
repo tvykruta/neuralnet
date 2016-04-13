@@ -115,35 +115,36 @@ void VectorDifference(const vector<double> &vec_1,
 // deltas: layer L computed deltas
 // nodes: Incoming weights from layer L - 1
 // activations: activations from L
-// output: new deltas for Layer L - 1
+// output_deltas: new deltas for Layer L - 1
 // node_start_index: starting node. use 1 to skip bias propagating bias node.
 //
 // d(l) = SUM(d(l+1) * theta(l)) * dSigmoid(a(l))
-bool BackPropagateErrorInLayer(const vector<double> &deltas,
-                               const vector<Node> &nodes,
-                               const vector<double> &activations,
-                               const int node_start_index,
-                               vector<double> *output_deltas) {
+bool BackPropagateDelta(const vector<double> &deltas,
+                        const vector<Node> &nodes,
+                        const vector<double> &activations,
+                        const int node_start_index,
+                        vector<double> *output_deltas) {
     assert(output_deltas->empty());
     const int num_weights = nodes[0].weights.size();
     assert(num_weights > 0);
-    vector<double> output;
-    output.resize(num_weights, 0.0);
+    vector<double> output_delta;
+    output_delta.resize(num_weights, 0.0);
 
+    // For each theta, sum up delta * theta, then multiply by activation.
     // For each weight, loop over each node nad accumulate.
     // Ie: Accumulate weight 0 for all nodes, then 1, then 2..
     for (int w = 0; w < num_weights; w++) {
         for (int n = node_start_index; n < nodes.size(); n++) {
             const double delta = deltas[n];
             const auto &node = nodes[n];
-            output[w] += node.weights[w] * delta;
+            output_delta[w] += node.weights[w] * delta;
         }
     }
 
     for (int w = 0; w < num_weights; w++) {
-      output[w] *= dSigmoid(activations[w]);
+      output_delta[w] *= dSigmoid(activations[w]);
     }
-    *output_deltas = output;
+    *output_deltas = output_delta;
     return true;
 }
 
@@ -186,14 +187,20 @@ bool AccumulateGradients(const vector< vector<double> > &activations,
                          const vector< vector<double> > &deltas,
                          vector<Layer> *layers) {
   for (int l = layers->size() - 1; l >= 1; l--) {
+    int start_index = 1;
+    if (l == layers->size() - 1) {
+      start_index = 0; // skip bias nodes, except in output layer.
+      // IDEA: add an bias node in output too, then this code goes away.
+    }
     Layer &layer = layers->at(l);
     assert(layer.nodes.size() == deltas[l].size());
-    for (int n = 0; n < layer.nodes.size(); n++) {
+    for (int n = start_index; n < layer.nodes.size(); n++) {
       Node &node = layer.nodes[n];
       if (activations[l-1].size() != node.gradients.size())
       printf("layer %i node %i activations[l-1].size() %lu node.gradients.size %lu\n",
          l, n, activations[l-1].size(), node.gradients.size());
       assert(activations[l-1].size() == node.gradients.size());
+      assert(activations[l-1][0] == 1.0); // bias node is always 1.0.
       AccumulateGradient(deltas[l][n], activations[l-1], &node.gradients);
     }
   }
@@ -221,7 +228,7 @@ bool BackPropagate(const vector<double> &labeled_data_inputs,
   VectorDifference(activations.back(), labeled_data_outputs, &deltas.back());
   assert(deltas.back().size() == activations.back().size());
 
-  // Back propgate deltas to each hidden. Do not compute for first layer.
+  // Back propagate deltas to each hidden. Do not compute for first layer.
   for (int i = layers.size() - 1; i > 1; i--) {
       int skip_bias_node = 1;
       if (i == layers.size() - 1) {
@@ -230,11 +237,11 @@ bool BackPropagate(const vector<double> &labeled_data_inputs,
       const auto &layer = layers[i];
       vector<double> output_deltas;
       output_deltas.reserve(layer.nodes[0].weights.size());
-      BackPropagateErrorInLayer(deltas.back(),
-                                layer.nodes,
-                                activations[i],
-                                skip_bias_node,
-                                &output_deltas);
+      BackPropagateDelta(deltas.back(),
+                         layer.nodes,
+                         activations[i],
+                         skip_bias_node,
+                         &output_deltas);
       deltas.push_back(output_deltas);
   }
   // Insert empty placeholder to make deltas and layers array same size.
@@ -273,11 +280,13 @@ bool NeuralNetwork::BackPropagate(const vector<double> &labeled_data_inputs,
 bool UpdateWeights(const int num_trained_samples, vector<Layer> *layers) {
   double d1_trainingsamples = 1.0 / (double)num_trained_samples;
   // Note, that there is no first layer for gradients.
-  for (auto &layer : *layers) {
+  for (int l = 1; l < layers->size(); l++) {
+    auto &layer = layers->at(l);
     for (int n = 0; n < layer.nodes.size(); n++) {
       auto &node = layer.nodes[n];
       for (int w = 0; w < node.weights.size(); w++) {
-        node.weights[w] += -d1_trainingsamples * node.gradients[w] * LEARNING_RATE;
+        assert(node.gradients[w] != 0.0);
+        node.weights[w] += (-1.0 / (double)num_trained_samples) * node.gradients[w] * LEARNING_RATE;
         node.gradients[w] = 0.0;
       }
     }
