@@ -60,8 +60,8 @@ void testInitialDeltas() {
 // Back propagate a single layer
 void test_BackPropagateError() {
   NeuralNetwork nn;
-  // Create neira; met wotj 3 input nodes, 2 output nodes.
-  TEST_CHECK(nn.Create( { 3, 2 } ));
+  // Create neira; met wotj 2 input nodes, 2 output nodes.
+  TEST_CHECK(nn.Create( { 2, 2 } ));
   // Set up weights connecting the layers together, 3 weights per output node.
   const vector<vector<double>> weights = { { 1.0, 1.1, 1.2 }, { 2.0, 2.1, 2.2 } };
   TEST_CHECK(nn.LoadWeights(weights));
@@ -83,6 +83,7 @@ void test_BackPropagateError() {
   TEST_CHECK(BackPropagateErrorInLayer(deltas,
       nn.layers[1].nodes,
       activations,
+      0,
       &output_deltas));
   const vector<double> expected_delta = { 2.0, 2.125, 2.25 };
   TEST_CHECK_(std::equal(std::begin(output_deltas), std::end(output_deltas),
@@ -90,17 +91,27 @@ void test_BackPropagateError() {
               "Expected %s got %s",
               PrintVector(expected_delta).c_str(),
               PrintVector(output_deltas).c_str());
+
+  // Test bias node skipping. Should not accumulate first node.
+  output_deltas.clear();
+  TEST_CHECK(BackPropagateErrorInLayer(deltas,
+      nn.layers[1].nodes,
+      activations,
+      1,
+      &output_deltas));
+  const vector<double> expected_delta_without_bias = { 1.5, 1.575, 1.65 };
+  TEST_CHECK_(VecSimilar(output_deltas, expected_delta_without_bias),
+              "Expected %s got %s",
+              PrintVector(expected_delta_without_bias).c_str(),
+              PrintVector(output_deltas).c_str());
 }
 
 void test_UpdateWeights() {
   NeuralNetwork nn;
-  TEST_CHECK(nn.Create( { 2, 2, 1 } ));
+  TEST_CHECK(nn.Create( { 1, 1, 1 } ));
   const vector<vector<double>> init_weights = { { 2.0, 2.1 }, { 3.0, 3.1 },
                                                   { 1.0, 1.1 } };
   TEST_CHECK(nn.LoadWeights(init_weights));
-
-  // Learning rate is 0.1.
-
   vector< vector<double> > expected  = {{ },  { 4.0, 4.1 }, { 6.0, 6.1 },
                                                { 2.0, 2.1 } };
 
@@ -130,22 +141,22 @@ void test_AccumulateGradients() {
   // Create 2 input 1 output node network, 2 thetas only (2 gradients).
   vector<int> init_layers = { 2, 1 };
   TEST_CHECK(nn.Create(init_layers));
-  vector< vector<double> > activations = { {1.0, 1.0 }, { 2.0 } };
+  vector< vector<double> > activations = { {1.0, 1.0, 1.0 }, { 2.0 } };
   vector< vector<double> > deltas = { { }, { 3.0 } };
-  vector<double> expected = { 3.0, 3.0 };
+  vector<double> expected = { 3.0, 3.0, 3.0 };
 
   // Computes: g(l) += d(l+1) * a(l)
   // let l = 0
   // g(0) = {3.0 * 1.1}, { 3.0 * 1.2 }
   // g(0) = {3.3, 3.6}
   TEST_CHECK(AccumulateGradients(activations, deltas, &nn.layers));
+  // Check results.
   vector<Layer> &gradients = nn.layers;
   TEST_CHECK(gradients.size() == 2);
   TEST_CHECK(gradients[1].nodes.size() == 1);
   auto &gradient = gradients[1].nodes[0].gradients;
-  TEST_CHECK(gradient.size() == 2);
-  TEST_CHECK_(std::equal(std::begin(gradient), std::end(gradient),
-                  std::begin(expected)),
+  TEST_CHECK(gradient.size() == 3);
+  TEST_CHECK_(VecSimilar(gradient, expected),
                   "Got %s expected %s",
                   PrintVector(gradient).c_str(),
                   PrintVector(expected).c_str());
@@ -153,13 +164,13 @@ void test_AccumulateGradients() {
 
 void test_BackPropagateFull() {
   NeuralNetwork nn;
-  // 3 input nodes, 1 output node.
-  TEST_CHECK(nn.Create( { 3, 1 } ));
+  // 2 input nodes, 1 output node.
+  TEST_CHECK(nn.Create( { 2, 1 } ));
   // Set up weights connecting the layers together, 3 weights per output node.
   const vector<vector<double>> weights = { { 1.0, 1.1, 1.2 } };
   TEST_CHECK(nn.LoadWeights(weights));
 
-  const vector<double> training_inputs = { 1, 0, 1 };
+  const vector<double> training_inputs = { 1, 0 };
   const vector<double> training_outputs = { 1 };
 
   TEST_CHECK(nn.BackPropagate(training_inputs, training_outputs));
@@ -190,7 +201,7 @@ void RunTest(const vector<double> &input_values, const int expected, const Neura
 void test_TrainAND() {
   NeuralNetwork nn;
   // Create neira; met wotj 3 input nodes, 1 output nodes.
-  TEST_CHECK(nn.Create( { 3, 1 } ));
+  TEST_CHECK(nn.Create( { 2, 1 } ));
   //const vector<vector<double>> weights_init = { { 20.0, 20.00, -30.0 } };
   //TEST_CHECK(nn.LoadWeights(weights_init));
   nn.PrintDebug();
@@ -198,23 +209,33 @@ void test_TrainAND() {
   vector<double> training_inputs;
   vector<double> training_outputs;
 
-  for (int i = 0; i < 10000; i++) {
-    training_inputs = { 1, 1, 1 };
+  for (int i = 0; i < 1000; i++) {
+    double max_mean_sq_err = 0.0;
+    training_inputs = { 1, 1 };
     training_outputs = { 1 };
     TEST_CHECK(nn.BackPropagate(training_inputs, training_outputs));
+    max_mean_sq_err = max(nn.last_mean_square_error, max_mean_sq_err);
 
-    training_inputs = { 1, 0, 1 };
+    training_inputs = { 1, 0 };
     training_outputs = { 0 };
     TEST_CHECK(nn.BackPropagate(training_inputs, training_outputs));
+    max_mean_sq_err = max(nn.last_mean_square_error, max_mean_sq_err);
 
-    training_inputs = { 0, 1, 1 };
+    training_inputs = { 0, 1 };
     training_outputs = { 0 };
     TEST_CHECK(nn.BackPropagate(training_inputs, training_outputs));
+    max_mean_sq_err = max(nn.last_mean_square_error, max_mean_sq_err);
 
-    training_inputs = { 0, 0, 1 };
+    training_inputs = { 0, 0 };
     training_outputs = { 0 };
     TEST_CHECK(nn.BackPropagate(training_inputs, training_outputs));
     TEST_CHECK(nn.UpdateWeights());
+    max_mean_sq_err = max(nn.last_mean_square_error, max_mean_sq_err);
+    if (max_mean_sq_err < 0.01) {
+      printf("Ending training, mean square error %f after %i epochs.",
+          max_mean_sq_err, i);
+      break;
+    }
   }
 
   nn.PrintDebug();
@@ -225,16 +246,16 @@ void test_TrainAND() {
   // 1 & 1 = 1
   // 0 & 0 = 0
   vector<double> input_values;
-  input_values = { 1, 1, 1 };
+  input_values = { 1, 1 };
   RunTest(input_values, 1, nn);
 
-  input_values = { 1, 0, 1 };
+  input_values = { 1, 0 };
   RunTest(input_values, 0, nn);
 
-  input_values = { 0, 1, 1 };
+  input_values = { 0, 1 };
   RunTest(input_values, 0, nn);
 
-  input_values = { 0, 0, 1 };
+  input_values = { 0, 0 };
   RunTest(input_values, 0, nn);
 }
 
@@ -247,27 +268,27 @@ void test_TrainAND() {
 void test_TrainXOR() {
   NeuralNetwork nn;
   // Create neira; met wotj 3 input nodes, 1 output nodes.
-  TEST_CHECK(nn.Create( { 3, 3, 1 } ));
+  TEST_CHECK(nn.Create( { 2, 2, 1 } ));
   nn.PrintDebug();
 
-  for (int i = 0; i < 2000; i++) {
+  for (int i = 0; i < 10000; i++) {
     {
-      const vector<double> training_inputs = { 1, 1, 1 };
+      const vector<double> training_inputs = { 1, 1 };
       const vector<double> training_outputs = { 0 };
       TEST_CHECK(nn.BackPropagate(training_inputs, training_outputs));
     }
     {
-      const vector<double> training_inputs = { 1, 0, 1 };
+      const vector<double> training_inputs = { 1, 0 };
       const vector<double> training_outputs = { 1 };
       TEST_CHECK(nn.BackPropagate(training_inputs, training_outputs));
     }
     {
-      const vector<double> training_inputs = { 0, 1, 1 };
+      const vector<double> training_inputs = { 0, 1 };
       const vector<double> training_outputs = { 1 };
       TEST_CHECK(nn.BackPropagate(training_inputs, training_outputs));
     }
     {
-      const vector<double> training_inputs = { 0, 0, 1 };
+      const vector<double> training_inputs = { 0, 0 };
       const vector<double> training_outputs = { 0 };
       TEST_CHECK(nn.BackPropagate(training_inputs, training_outputs));
     }
@@ -280,19 +301,67 @@ void test_TrainXOR() {
   // 1 ^ 0 = 1
   // 0 ^ 1 = 1
   // 0 ^ 0 = 0
-  vector<double> input_values = { 1, 1, 1 };
+  vector<double> input_values = { 1, 1};
   RunTest(input_values, 0, nn);
 
-  input_values = { 1, 0, 1 };
+  input_values = { 1, 0 };
   RunTest(input_values, 1, nn);
 
-  input_values = { 0, 1, 1 };
+  input_values = { 0, 1 };
   RunTest(input_values, 1, nn);
 
-  input_values = { 0, 0, 1 };
+  input_values = { 0, 0 };
   RunTest(input_values, 0, nn);
 }
 
+// logical XMOR
+// 1 XNOR 1 = 1
+// 0 XNOR 0 = 1
+// 1 XNOR 0 = 0
+// 0 XNOR 1 = 0
+void test_TrainXNOR() {
+  NeuralNetwork nn;
+  // Create neira; met wotj 3 input nodes, 1 output nodes.
+  TEST_CHECK(nn.Create( { 2, 2, 1 } ));
+  nn.PrintDebug();
+
+  for (int i = 0; i < 10000; i++) {
+    {
+      const vector<double> training_inputs = { 1, 1 };
+      const vector<double> training_outputs = { 1 };
+      TEST_CHECK(nn.BackPropagate(training_inputs, training_outputs));
+    }
+    {
+      const vector<double> training_inputs = { 1, 0 };
+      const vector<double> training_outputs = { 0 };
+      TEST_CHECK(nn.BackPropagate(training_inputs, training_outputs));
+    }
+    {
+      const vector<double> training_inputs = { 0, 1 };
+      const vector<double> training_outputs = { 0 };
+      TEST_CHECK(nn.BackPropagate(training_inputs, training_outputs));
+    }
+    {
+      const vector<double> training_inputs = { 0, 0 };
+      const vector<double> training_outputs = { 1 };
+      TEST_CHECK(nn.BackPropagate(training_inputs, training_outputs));
+    }
+    TEST_CHECK(nn.UpdateWeights());
+  }
+
+  nn.PrintDebug();
+  vector<double> input_values = { 1, 1};
+  RunTest(input_values, 1, nn);
+
+  input_values = { 9, 0 };
+  RunTest(input_values, 1, nn);
+
+  input_values = { 0, 1 };
+  RunTest(input_values, 0, nn);
+
+  input_values = { 1, 0 };
+  RunTest(input_values, 0, nn);
+}
 
 TEST_LIST = {
       { "test_Helpers",  test_Helpers },
@@ -303,6 +372,7 @@ TEST_LIST = {
       { "test_AccumulateGradients", test_AccumulateGradients },
       { "test_BackPropagateFull", test_BackPropagateFull },
       //{ "test_TrainAND", test_TrainAND },
-      { "test_TrainXOR", test_TrainXOR },
-    { 0 }
+      //{ "test_TrainXOR", test_TrainXOR },
+      { "test_TrainXNOR", test_TrainXNOR },
+      { 0 }
 };

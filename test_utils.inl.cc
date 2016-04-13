@@ -49,7 +49,7 @@ bool VecSimilar(const vector<double> &vec_1,
   if (vec_1.size() != vec_2.size()) {
     return false;
   }
-  const double THRESHOLD = 0.000f;
+  const double THRESHOLD = 0.001f;
   vector<double> r;
   std::transform(vec_1.begin(), vec_1.end(), vec_2.begin(),
 	    std::back_inserter(r),

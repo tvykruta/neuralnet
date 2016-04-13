@@ -80,7 +80,7 @@ struct Layer {
 // Primary implementation.
 class NeuralNetwork {
 public:
-  NeuralNetwork() : last_mean_square_error(-12345.0), num_trained_samples(0) {};
+  NeuralNetwork() : last_mean_square_error(1.0), num_trained_samples(0) {};
   // Construct simple 3 layer neural network (most common).
   bool Create(const int input_nodes, const int hidden_nodes, const int output_nodes);
   // Construct full neural network with arbitrary # of hidden layers.
@@ -119,21 +119,10 @@ public:
                      const vector<double> &labeled_data_outputs);
   // Update weights. Call after all training samples.
   bool UpdateWeights();
-private:
-  // Adds layer with N nodes. Each node has array of X weights for incoming
-  // nodes.
-  //
-  //   A  A  A
-  //     B  B
-  // Above example if we add layer B, each node B would have 3 weights.
-  bool AddLayer(const int num_nodes, const int num_nodes_previous_layer) {
-    layers.emplace_back(num_nodes, num_nodes_previous_layer);
-  }
 
 public:
   vector<Layer> layers;
   // For training only.
-  vector< vector<double> > gradients;
   int num_trained_samples;
   double last_mean_square_error;
 };
